@@ -54,7 +54,7 @@ int main( int argc, char *argv[] )
     printf( "data = 0x%08x\n", data );
   }
 
-  // Delete maping.
+  // Delete mapping.
   if( munmap( map_page_addr, MAP_SIZE ) ) {
     perror( "munmap" );
     exit( -1 ); 
