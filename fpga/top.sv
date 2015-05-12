@@ -1,7 +1,5 @@
 
 module top(
-                input              clk_25m_i,
-
 		output wire [14:0] memory_mem_a,                
 		output wire [2:0]  memory_mem_ba,               
 		output wire        memory_mem_ck,               
@@ -80,36 +78,25 @@ logic               reg16_read;
 logic [11:0]        reg16_address;
 logic [15:0]        reg16_writedata;
 logic [1:0]         reg16_byteenable;
-
 logic [15:0]        reg16_readdata;
 logic               reg16_readdatavalid;
 logic               reg16_waitrequest;
 
 
-logic [27:0]        sdram0_address;
+logic [28:0]        sdram0_address;
 logic [7:0]         sdram0_burstcount;
 logic               sdram0_waitrequest;
-logic [127:0]       sdram0_readdata;
+logic [63:0]        sdram0_readdata;
 logic               sdram0_readdatavalid;
 logic               sdram0_read;
-logic [127:0]       sdram0_writedata;
-logic [15:0]        sdram0_byteenable;
+logic [63:0]        sdram0_writedata;
+logic [7:0]         sdram0_byteenable;
 logic               sdram0_write;
 
 
 //***********************************************************
 // SOC instance
 //***********************************************************
-
-//assign clk_w = clk_25m_i;
-
-pll25 pll25(
-  .refclk                                 ( clk_25m_i                        ),
-  .rst                                    ( 1'b0                             ),
-  .outclk_0                               (                                  ),
-  .outclk_1                               ( clk_w                            ),
-  .locked                                 (                                  ),
-);
 
 soc soc(
   .memory_mem_a                           ( memory_mem_a                     ),
@@ -160,9 +147,6 @@ soc soc(
 );
 
 
-
-
-
 avalon_width_adapter avalon_width_adapter_regs(
   .clk_i                                  ( clk_w                            ),
   .rst_i                                  ( 1'b0                             ),
@@ -195,9 +179,10 @@ avalon_width_adapter avalon_width_adapter_regs(
 defparam avalon_width_adapter_regs.SLAVE_ADDR_IS_BYTE = 0;
 
 // 64 / 16 = 4
-defparam avalon_width_adapter_regs.WIDTH_RATIO        = 4;
-defparam avalon_width_adapter_regs.NARROW_IF_BE_W     = 2;
-defparam avalon_width_adapter_regs.WIDE_IF_ADDR_W     = 10;
+defparam avalon_width_adapter_regs.WIDTH_RATIO    = 4;
+defparam avalon_width_adapter_regs.NARROW_IF_BE_W = 2;
+defparam avalon_width_adapter_regs.WIDE_IF_ADDR_W = 10;
+
 
 
 
@@ -234,7 +219,6 @@ assign reg16_readdatavalid = reg16_read;
 assign reg16_waitrequest = 1'b0;
 
 
-
 //***********************************************************
 // SDRAM interface
 //***********************************************************
@@ -264,8 +248,7 @@ sedge_sel_sv run_test_sel(
 
 // Current state -- '1' if transaction in progress, '0' otherwise
 logic test_is_running;
-logic test_is_running_d1;
-logic test_is_running_stb;
+
 
 // Set 1 when CPU start transaction, set 0 when transaction finished
 always_ff @( posedge clk_w )
@@ -275,15 +258,9 @@ always_ff @( posedge clk_w )
     if( test_finished )
       test_is_running <= 1'b0;
 
-// Delay version of state
-always_ff @( posedge clk_w )
-  test_is_running_d1 <= test_is_running;
-
-// Get strobe 
-assign test_is_running_stb =  test_is_running && !test_is_running_d1;
 
 // For emulate data
-logic [63:0] data_cnt;
+logic [31:0] data_cnt;
 
 // Current address on SDRAM iface
 logic [31:0] addr_cnt;
@@ -291,20 +268,13 @@ logic [31:0] addr_cnt;
 // Overall cycles count. 
 logic [31:0] cycle_cnt;
 
+
 always_ff @( posedge clk_w )
-  if( test_is_running_stb )
+  if( run_test_stb )
     cycle_cnt <= '0;
   else
     if( test_is_running )
       cycle_cnt <= cycle_cnt + 1;
-
-
-logic test_finished;
-
-assign test_finished = ( data_cnt == ( dma_data_size - 1 ) ) && !sdram0_waitrequest;
-
-// Rise interrupt to CPU
-assign irq0_w[0] = test_finished;
 
 
 // Form pseudo-data 
@@ -316,6 +286,7 @@ always_ff @( posedge clk_w )
       if( data_cnt != ( dma_data_size - 1 ) )
         data_cnt <= data_cnt + 1;
 
+
 // Increase address if no waitrequest
 always_ff @( posedge clk_w )
   if( run_test_stb )
@@ -323,12 +294,20 @@ always_ff @( posedge clk_w )
   else
     if( !sdram0_waitrequest )
       addr_cnt <= addr_cnt + 1;
+
+
+logic test_finished;
+
+assign test_finished = ( data_cnt == ( dma_data_size - 1 ) ) && !sdram0_waitrequest;
+
+// Rise interrupt to CPU
+assign irq0_w[0] = test_finished;
    
 
 // SDRAM IF
 assign sdram0_writedata  = { ~data_cnt, data_cnt };
 assign sdram0_write      = test_is_running;
-assign sdram0_byteenable = 16'hffff;
+assign sdram0_byteenable = 8'hff;
 assign sdram0_burstcount = 1'b1;
 assign sdram0_address    = addr_cnt;
 
