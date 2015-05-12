@@ -83,14 +83,14 @@ logic               reg16_readdatavalid;
 logic               reg16_waitrequest;
 
 
-logic [28:0]        sdram0_address;
+logic [27:0]        sdram0_address;
 logic [7:0]         sdram0_burstcount;
 logic               sdram0_waitrequest;
-logic [63:0]        sdram0_readdata;
+logic [127:0]       sdram0_readdata;
 logic               sdram0_readdatavalid;
 logic               sdram0_read;
-logic [63:0]        sdram0_writedata;
-logic [7:0]         sdram0_byteenable;
+logic [127:0]       sdram0_writedata;
+logic [15:0]        sdram0_byteenable;
 logic               sdram0_write;
 
 
@@ -260,7 +260,7 @@ always_ff @( posedge clk_w )
 
 
 // For emulate data
-logic [31:0] data_cnt;
+logic [63:0] data_cnt;
 
 // Current address on SDRAM iface
 logic [31:0] addr_cnt;
@@ -307,7 +307,7 @@ assign irq0_w[0] = test_finished;
 // SDRAM IF
 assign sdram0_writedata  = { ~data_cnt, data_cnt };
 assign sdram0_write      = test_is_running;
-assign sdram0_byteenable = 8'hff;
+assign sdram0_byteenable = 16'hffff;
 assign sdram0_burstcount = 1'b1;
 assign sdram0_address    = addr_cnt;
 
